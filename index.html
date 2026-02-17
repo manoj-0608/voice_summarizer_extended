@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Summarizer Pro</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.0/axios.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Serif+Display&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #FF6B35;
+            --secondary: #004E89;
+            --accent: #F7B801;
+            --dark: #1A1A2E;
+            --light: #F8F9FA;
+            --success: #06D6A0;
+            --danger: #EF476F;
+            --gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-2: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --gradient-3: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.1);
+            --shadow-md: 0 4px 16px rgba(0,0,0,0.15);
+            --shadow-lg: 0 8px 32px rgba(0,0,0,0.2);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            color: var(--dark);
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(255,107,53,0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(247,184,1,0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(6,214,160,0.1) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        #root {
+            position: relative;
+            z-index: 1;
+        }
+
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header h1 {
+            font-family: 'DM Serif Display', serif;
+            font-size: 4.5rem;
+            font-weight: 400;
+            background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 16px;
+            letter-spacing: -2px;
+            text-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.25rem;
+            color: rgba(255,255,255,0.9);
+            font-weight: 300;
+            letter-spacing: 0.5px;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: var(--shadow-lg);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+        }
+
+        .upload-zone {
+            border: 3px dashed var(--secondary);
+            border-radius: 20px;
+            padding: 60px 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, rgba(102,126,234,0.05) 0%, rgba(118,75,162,0.05) 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-zone::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .upload-zone:hover::before {
+            opacity: 1;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, rgba(255,107,53,0.08) 0%, rgba(247,184,1,0.08) 100%);
+            transform: scale(1.02);
+        }
+
+        .upload-zone.drag-over {
+            border-color: var(--accent);
+            background: linear-gradient(135deg, rgba(247,184,1,0.15) 0%, rgba(255,107,53,0.15) 100%);
+            transform: scale(1.05);
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            color: var(--secondary);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .upload-text {
+            font-size: 1.25rem;
+            color: var(--dark);
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .upload-subtext {
+            color: #666;
+            font-size: 0.95rem;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .selected-file {
+            margin-top: 20px;
+            padding: 20px;
+            background: var(--gradient-3);
+            border-radius: 16px;
+            color: white;
+            font-weight: 600;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .option-group {
+            background: linear-gradient(135deg, rgba(102,126,234,0.05) 0%, rgba(118,75,162,0.05) 100%);
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(102,126,234,0.2);
+        }
+
+        .option-group label {
+            display: block;
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid rgba(102,126,234,0.3);
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: white;
+            cursor: pointer;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 4px rgba(0,78,137,0.1);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: var(--secondary);
+        }
+
+        .btn {
+            padding: 16px 40px;
+            border: none;
+            border-radius: 14px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .btn-primary {
+            background: var(--gradient-1);
+            color: white;
+            box-shadow: 0 8px 20px rgba(102,126,234,0.4);
+            width: 100%;
+            margin-top: 30px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 28px rgba(102,126,234,0.5);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: var(--gradient-2);
+            color: white;
+            padding: 10px 24px;
+            font-size: 0.9rem;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(240,147,251,0.4);
+        }
+
+        .progress-container {
+            margin-top: 30px;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(102,126,234,0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--gradient-1);
+            transition: width 0.3s ease;
+            position: relative;
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255,255,255,0.3),
+                transparent
+            );
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 12px;
+            color: var(--secondary);
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .results-container {
+            animation: fadeInUp 0.5s ease-out;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-family: 'DM Serif Display', serif;
+            font-size: 1.8rem;
+            color: var(--secondary);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 6px;
+            height: 30px;
+            background: var(--gradient-1);
+            border-radius: 3px;
+        }
+
+        .transcript-box {
+            background: linear-gradient(135deg, rgba(102,126,234,0.03) 0%, rgba(118,75,162,0.03) 100%);
+            padding: 24px;
+            border-radius: 16px;
+            border: 1px solid rgba(102,126,234,0.2);
+            max-height: 400px;
+            overflow-y: auto;
+            line-height: 1.8;
+            font-size: 1.05rem;
+            color: var(--dark);
+            position: relative;
+        }
+
+        .transcript-box::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .transcript-box::-webkit-scrollbar-track {
+            background: rgba(102,126,234,0.1);
+            border-radius: 10px;
+        }
+
+        .transcript-box::-webkit-scrollbar-thumb {
+            background: var(--gradient-1);
+            border-radius: 10px;
+        }
+
+        .summary-box {
+            background: var(--gradient-3);
+            padding: 28px;
+            border-radius: 16px;
+            color: white;
+            line-height: 1.8;
+            font-size: 1.1rem;
+            box-shadow: var(--shadow-md);
+        }
+
+        .keywords-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .keyword-tag {
+            background: var(--gradient-2);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            box-shadow: var(--shadow-sm);
+            animation: popIn 0.3s ease-out backwards;
+        }
+
+        @keyframes popIn {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .keyword-tag:nth-child(1) { animation-delay: 0.05s; }
+        .keyword-tag:nth-child(2) { animation-delay: 0.1s; }
+        .keyword-tag:nth-child(3) { animation-delay: 0.15s; }
+        .keyword-tag:nth-child(4) { animation-delay: 0.2s; }
+        .keyword-tag:nth-child(5) { animation-delay: 0.25s; }
+
+        .action-items {
+            list-style: none;
+            padding: 0;
+        }
+
+        .action-item {
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, rgba(6,214,160,0.1) 0%, rgba(6,214,160,0.05) 100%);
+            border-left: 4px solid var(--success);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            animation: slideInLeft 0.4s ease-out backwards;
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .action-item:nth-child(1) { animation-delay: 0.1s; }
+        .action-item:nth-child(2) { animation-delay: 0.2s; }
+        .action-item:nth-child(3) { animation-delay: 0.3s; }
+
+        .action-item:hover {
+            transform: translateX(8px);
+            background: linear-gradient(135deg, rgba(6,214,160,0.15) 0%, rgba(6,214,160,0.08) 100%);
+        }
+
+        .metadata {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .metadata-item {
+            background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%);
+            padding: 20px;
+            border-radius: 16px;
+            text-align: center;
+            border: 1px solid rgba(102,126,234,0.2);
+        }
+
+        .metadata-label {
+            font-size: 0.85rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .metadata-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--secondary);
+        }
+
+        .waveform-container {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(0,0,0,0.03);
+            border-radius: 16px;
+            height: 150px;
+        }
+
+        .sentiment-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .sentiment-positive {
+            background: linear-gradient(135deg, rgba(6,214,160,0.2) 0%, rgba(6,214,160,0.1) 100%);
+            color: #05a57c;
+            border: 2px solid var(--success);
+        }
+
+        .sentiment-negative {
+            background: linear-gradient(135deg, rgba(239,71,111,0.2) 0%, rgba(239,71,111,0.1) 100%);
+            color: #c23656;
+            border: 2px solid var(--danger);
+        }
+
+        .export-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .loading-spinner {
+            border: 4px solid rgba(102,126,234,0.2);
+            border-top: 4px solid var(--secondary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .history-item {
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(102,126,234,0.05) 0%, rgba(118,75,162,0.05) 100%);
+            border-radius: 16px;
+            margin-bottom: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(102,126,234,0.2);
+        }
+
+        .history-item:hover {
+            transform: translateX(8px);
+            background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%);
+            box-shadow: var(--shadow-md);
+        }
+
+        .translation-box {
+            margin-top: 20px;
+            padding: 24px;
+            background: linear-gradient(135deg, rgba(247,184,1,0.1) 0%, rgba(255,107,53,0.1) 100%);
+            border-radius: 16px;
+            border: 2px solid var(--accent);
+        }
+
+        .tab-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid rgba(102,126,234,0.2);
+        }
+
+        .tab {
+            padding: 12px 24px;
+            border: none;
+            background: none;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab.active {
+            color: var(--secondary);
+            border-bottom-color: var(--secondary);
+        }
+
+        .tab:hover {
+            color: var(--secondary);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Auto-detect API URL - works both when served by Flask AND opened directly
+        const API_URL = (window.location.protocol === 'file:' || window.location.hostname === '')
+            ? 'http://localhost:5000/api'
+            : `${window.location.protocol}//${window.location.hostname}:5000/api`;
+
+        function App() {
+            const [file, setFile] = useState(null);
+            const [processing, setProcessing] = useState(false);
+            const [progress, setProgress] = useState(0);
+            const [progressStage, setProgressStage] = useState('');
+            const [results, setResults] = useState(null);
+            const [errorMsg, setErrorMsg] = useState('');
+            const [options, setOptions] = useState({
+                summaryType: 'brief',
+                includeKeywords: true,
+                includeSentiment: true,
+                includeActionItems: true,
+                translateTo: ''
+            });
+            const [history, setHistory] = useState([]);
+            const [activeTab, setActiveTab] = useState('upload');
+            const [dragOver, setDragOver] = useState(false);
+            const fileInputRef = useRef(null);
+            const socketRef = useRef(null);
+
+            useEffect(() => {
+                // Initialize WebSocket - with reconnection
+                socketRef.current = io('http://localhost:5000', {
+                    transports: ['polling', 'websocket'],
+                    reconnection: true,
+                    reconnectionAttempts: 5
+                });
+
+                socketRef.current.on('progress', (data) => {
+                    setProgress(data.progress);
+                    setProgressStage(data.stage);
+                });
+
+                socketRef.current.on('connect_error', (err) => {
+                    console.log('Socket connection error:', err);
+                });
+
+                loadHistory();
+
+                return () => {
+                    if (socketRef.current) {
+                        socketRef.current.disconnect();
+                    }
+                };
+            }, []);
+
+            const loadHistory = async () => {
+                try {
+                    const response = await axios.get(`${API_URL}/history`);
+                    setHistory(response.data.reverse());
+                } catch (error) {
+                    console.error('Error loading history:', error);
+                }
+            };
+
+            const handleFileSelect = (selectedFile) => {
+                if (!selectedFile) return;
+                // Accept audio files and also common types that might not have audio/ mime
+                const validTypes = ['audio/', 'video/mp4', 'video/webm'];
+                const validExts = ['mp3','wav','ogg','flac','m4a','webm','mp4'];
+                const ext = selectedFile.name.split('.').pop().toLowerCase();
+                const isValid = validTypes.some(t => selectedFile.type.startsWith(t)) || validExts.includes(ext);
+                if (isValid) {
+                    setFile(selectedFile);
+                    setErrorMsg('');
+                } else {
+                    setErrorMsg('Please select a valid audio file (MP3, WAV, OGG, FLAC, M4A)');
+                }
+            };
+
+            const handleDrop = (e) => {
+                e.preventDefault();
+                setDragOver(false);
+                const droppedFile = e.dataTransfer.files[0];
+                handleFileSelect(droppedFile);
+            };
+
+            const handleDragOver = (e) => {
+                e.preventDefault();
+                setDragOver(true);
+            };
+
+            const handleDragLeave = () => {
+                setDragOver(false);
+            };
+
+            const handleSubmit = async () => {
+                if (!file || processing) return;
+
+                setProcessing(true);
+                setProgress(5);
+                setProgressStage('uploading');
+                setResults(null);
+                setErrorMsg('');
+
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('summary_type', options.summaryType);
+                formData.append('include_keywords', String(options.includeKeywords));
+                formData.append('include_sentiment', String(options.includeSentiment));
+                formData.append('include_action_items', String(options.includeActionItems));
+                if (options.translateTo) {
+                    formData.append('translate_to', options.translateTo);
+                }
+
+                try {
+                    // Use fetch instead of axios to avoid any content-type issues
+                    const response = await fetch(`${API_URL}/transcribe`, {
+                        method: 'POST',
+                        body: formData
+                        // DO NOT set Content-Type header - browser sets it with boundary automatically
+                    });
+
+                    if (!response.ok) {
+                        // Try to get error message from response
+                        let errText = 'Error processing audio.';
+                        try {
+                            const errData = await response.json();
+                            errText = errData.error || errText;
+                        } catch(e) {}
+                        throw new Error(errText);
+                    }
+
+                    const data = await response.json();
+
+                    setResults(data);
+                    setProgress(100);
+                    setProgressStage('complete');
+                    setActiveTab('results');
+                    loadHistory();
+
+                } catch (error) {
+                    console.error('Error processing audio:', error);
+                    setErrorMsg(error.message || 'Error processing audio. Please check the server is running and try again.');
+                    setProgress(0);
+                    setProgressStage('');
+                } finally {
+                    setProcessing(false);
+                }
+            };
+
+            const handleExport = async (format) => {
+                if (!results) return;
+
+                try {
+                    const response = await axios.post(
+                        `${API_URL}/export/${results.id}`,
+                        {
+                            format: format,
+                            data: results
+                        },
+                        {
+                            responseType: 'blob'
+                        }
+                    );
+
+                    const url = window.URL.createObjectURL(new Blob([response.data]));
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.setAttribute('download', `transcript_${results.id}.${format}`);
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                } catch (error) {
+                    console.error('Error exporting:', error);
+                    alert('Error exporting file. Please try again.');
+                }
+            };
+
+            const getStageText = (stage) => {
+                const stages = {
+                    'audio_analysis': 'Analyzing audio...',
+                    'transcription': 'Transcribing audio...',
+                    'language_detection': 'Detecting language...',
+                    'summarization': 'Generating summary...',
+                    'analysis': 'Analyzing content...',
+                    'translation': 'Translating...',
+                    'finalizing': 'Finalizing...',
+                    'complete': 'Complete!'
+                };
+                return stages[stage] || 'Processing...';
+            };
+
+            return (
+                <div className="app-container">
+                    <div className="header">
+                        <h1>Voice Summarizer Pro</h1>
+                        <p>Transform your audio into intelligent insights</p>
+                    </div>
+
+                    <div className="card">
+                        <div className="tab-container">
+                            <button 
+                                type="button"
+                                className={`tab ${activeTab === 'upload' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('upload')}
+                            >
+                                📤 Upload
+                            </button>
+                            <button 
+                                type="button"
+                                className={`tab ${activeTab === 'results' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('results')}
+                                disabled={!results}
+                            >
+                                📊 Results
+                            </button>
+                            <button 
+                                type="button"
+                                className={`tab ${activeTab === 'history' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('history')}
+                            >
+                                📜 History
+                            </button>
+                        </div>
+
+                        {activeTab === 'upload' && (
+                            <div>
+                                <div 
+                                    className={`upload-zone ${dragOver ? 'drag-over' : ''}`}
+                                    onClick={() => fileInputRef.current?.click()}
+                                    onDrop={handleDrop}
+                                    onDragOver={handleDragOver}
+                                    onDragLeave={handleDragLeave}
+                                >
+                                    <div className="upload-icon">🎙️</div>
+                                    <div className="upload-text">
+                                        {file ? 'File Selected!' : 'Drop your audio file here'}
+                                    </div>
+                                    <div className="upload-subtext">
+                                        or click to browse (MP3, WAV, OGG, FLAC, M4A)
+                                    </div>
+                                    <input 
+                                        ref={fileInputRef}
+                                        type="file" 
+                                        className="file-input" 
+                                        accept="audio/*"
+                                        onChange={(e) => handleFileSelect(e.target.files[0])}
+                                    />
+                                </div>
+
+                                {file && (
+                                    <div className="selected-file">
+                                        ✓ {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                                    </div>
+                                )}
+
+                                <div className="options-grid">
+                                    <div className="option-group">
+                                        <label>Summary Type</label>
+                                        <select 
+                                            value={options.summaryType}
+                                            onChange={(e) => setOptions({...options, summaryType: e.target.value})}
+                                        >
+                                            <option value="brief">Brief Summary</option>
+                                            <option value="detailed">Detailed Summary</option>
+                                            <option value="bullet_points">Bullet Points</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="option-group">
+                                        <label>Translate To</label>
+                                        <select 
+                                            value={options.translateTo}
+                                            onChange={(e) => setOptions({...options, translateTo: e.target.value})}
+                                        >
+                                            <option value="">No Translation</option>
+                                            <option value="es">Spanish</option>
+                                            <option value="fr">French</option>
+                                            <option value="de">German</option>
+                                            <option value="zh-cn">Chinese</option>
+                                            <option value="ja">Japanese</option>
+                                            <option value="ar">Arabic</option>
+                                            <option value="hi">Hindi</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="option-group">
+                                        <label>Analysis Options</label>
+                                        <div className="checkbox-group">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={options.includeKeywords}
+                                                onChange={(e) => setOptions({...options, includeKeywords: e.target.checked})}
+                                            />
+                                            <span>Extract Keywords</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="option-group">
+                                        <label>&nbsp;</label>
+                                        <div className="checkbox-group">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={options.includeSentiment}
+                                                onChange={(e) => setOptions({...options, includeSentiment: e.target.checked})}
+                                            />
+                                            <span>Sentiment Analysis</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button 
+                                    type="button"
+                                    className="btn btn-primary" 
+                                    onClick={handleSubmit}
+                                    disabled={!file || processing}
+                                >
+                                    {processing ? '⏳ Processing... Please Wait' : '🎙️ Process Audio'}
+                                </button>
+
+                                {/* Error Message */}
+                                {errorMsg && (
+                                    <div style={{
+                                        marginTop: '20px',
+                                        padding: '16px 20px',
+                                        background: 'linear-gradient(135deg, rgba(239,71,111,0.15) 0%, rgba(239,71,111,0.08) 100%)',
+                                        border: '2px solid #EF476F',
+                                        borderRadius: '12px',
+                                        color: '#c23656',
+                                        fontWeight: '600'
+                                    }}>
+                                        ❌ {errorMsg}
+                                    </div>
+                                )}
+
+                                {processing && (
+                                    <div className="progress-container">
+                                        <div style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            marginBottom: '8px',
+                                            fontWeight: '600',
+                                            color: '#004E89'
+                                        }}>
+                                            <span>{getStageText(progressStage)}</span>
+                                            <span>{progress}%</span>
+                                        </div>
+                                        <div className="progress-bar">
+                                            <div 
+                                                className="progress-fill" 
+                                                style={{width: `${progress}%`}}
+                                            ></div>
+                                        </div>
+                                        <div style={{
+                                            textAlign: 'center',
+                                            marginTop: '12px',
+                                            fontSize: '0.85rem',
+                                            color: '#666'
+                                        }}>
+                                            ⏳ This may take 30-60 seconds depending on audio length. Please do not close this page.
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {activeTab === 'results' && results && (
+                            <div className="results-container">
+                                <div className="metadata">
+                                    <div className="metadata-item">
+                                        <div className="metadata-label">Duration</div>
+                                        <div className="metadata-value">
+                                            {results.duration.toFixed(1)}s
+                                        </div>
+                                    </div>
+                                    <div className="metadata-item">
+                                        <div className="metadata-label">Language</div>
+                                        <div className="metadata-value">
+                                            {results.language.toUpperCase()}
+                                        </div>
+                                    </div>
+                                    <div className="metadata-item">
+                                        <div className="metadata-label">Words</div>
+                                        <div className="metadata-value">
+                                            {results.transcript.split(' ').length}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="section">
+                                    <div className="section-title">📝 Summary</div>
+                                    <div className="summary-box">
+                                        {results.summary}
+                                    </div>
+                                </div>
+
+                                {results.translation && (
+                                    <div className="section">
+                                        <div className="section-title">🌍 Translation</div>
+                                        <div className="translation-box">
+                                            {results.translation.text}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {results.sentiment && (
+                                    <div className="section">
+                                        <div className="section-title">😊 Sentiment</div>
+                                        <div className={`sentiment-indicator sentiment-${results.sentiment.label.toLowerCase()}`}>
+                                            {results.sentiment.label} 
+                                            ({(results.sentiment.score * 100).toFixed(0)}% confident)
+                                        </div>
+                                    </div>
+                                )}
+
+                                {results.keywords && results.keywords.length > 0 && (
+                                    <div className="section">
+                                        <div className="section-title">🔑 Keywords</div>
+                                        <div className="keywords-container">
+                                            {results.keywords.map((kw, idx) => (
+                                                <div key={idx} className="keyword-tag">
+                                                    {kw.word} ({kw.count})
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {results.action_items && results.action_items.length > 0 && (
+                                    <div className="section">
+                                        <div className="section-title">✅ Action Items</div>
+                                        <ul className="action-items">
+                                            {results.action_items.map((item, idx) => (
+                                                <li key={idx} className="action-item">{item}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+
+                                <div className="section">
+                                    <div className="section-title">📄 Full Transcript</div>
+                                    <div className="transcript-box">
+                                        {results.transcript}
+                                    </div>
+                                </div>
+
+                                <div className="section">
+                                    <div className="section-title">💾 Export</div>
+                                    <div className="export-buttons">
+                                        <button type="button" className="btn btn-secondary" onClick={() => handleExport('txt')}>
+                                            📄 Text
+                                        </button>
+                                        <button type="button" className="btn btn-secondary" onClick={() => handleExport('docx')}>
+                                            📘 Word
+                                        </button>
+                                        <button type="button" className="btn btn-secondary" onClick={() => handleExport('pdf')}>
+                                            📕 PDF
+                                        </button>
+                                        <button type="button" className="btn btn-secondary" onClick={() => handleExport('srt')}>
+                                            🎬 Subtitles
+                                        </button>
+                                        <button type="button" className="btn btn-secondary" onClick={() => handleExport('json')}>
+                                            🔧 JSON
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'results' && !results && (
+                            <div className="empty-state">
+                                <div className="empty-state-icon">📊</div>
+                                <h3>No results yet</h3>
+                                <p>Upload and process an audio file to see results here</p>
+                            </div>
+                        )}
+
+                        {activeTab === 'history' && (
+                            <div>
+                                <div className="section-title">📜 Processing History</div>
+                                {history.length === 0 ? (
+                                    <div className="empty-state">
+                                        <div className="empty-state-icon">📜</div>
+                                        <h3>No history yet</h3>
+                                        <p>Your processed files will appear here</p>
+                                    </div>
+                                ) : (
+                                    history.map((item, idx) => (
+                                        <div key={idx} className="history-item">
+                                            <strong>{item.filename}</strong>
+                                            <div style={{fontSize: '0.9rem', color: '#666', marginTop: '8px'}}>
+                                                {new Date(item.timestamp).toLocaleString()} • 
+                                                {item.language} • 
+                                                {item.duration.toFixed(1)}s
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
